@@ -1,8 +1,8 @@
 import streamlit as st
-import json
 import random
 from datetime import datetime, timedelta
 import pandas as pd
+from scraper import fetch_competitor_reels, fetch_chubbys_posts, COMPETITOR_ACCOUNTS
 
 # ─── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -210,12 +210,20 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── Header ───────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="brand-header">
-    <h1>🍗 Chubby's Chicken</h1>
-    <p>Content Intelligence Dashboard · Powered by Hyperwave Studios</p>
-</div>
-""", unsafe_allow_html=True)
+col_logo, col_title = st.columns([1, 3])
+with col_logo:
+    st.image("logo.png", width=180)
+with col_title:
+    st.markdown("""
+    <div style="padding: 1rem 0;">
+        <h1 style="color: #FF4500; font-size: 2rem; font-weight: 900; margin: 0; letter-spacing: -1px;">
+            Content Intelligence Dashboard
+        </h1>
+        <p style="color: #888; margin: 0.25rem 0 0 0; font-size: 0.95rem;">
+            Powered by Hyperwave Studios
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ─── Tabs ─────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -305,12 +313,55 @@ with tab1:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
     st.markdown("## 🔥 Trending in Nashville Hot Chicken")
-    
+
+    # ── Live Competitor Reels ──────────────────────────────────────────────
+    st.markdown("### 📱 Top Performing Competitor Reels (Live)")
+
+    handles = [a["handle"] for a in COMPETITOR_ACCOUNTS]
+
+    if st.button("🔄 Refresh Live Data", key="refresh_reels"):
+        st.cache_data.clear()
+
+    with st.spinner("Fetching latest reels from competitor accounts..."):
+        reels, scrape_error = fetch_competitor_reels(handles)
+
+    if scrape_error:
+        st.warning(f"⚠️ Scraper note: {scrape_error} — showing curated data below.")
+        reels = []
+
+    if reels:
+        cols_per_row = 3
+        for i in range(0, min(len(reels), 9), cols_per_row):
+            row_reels = reels[i:i+cols_per_row]
+            cols = st.columns(cols_per_row)
+            for col, reel in zip(cols, row_reels):
+                with col:
+                    if reel.get("thumbnail"):
+                        st.image(reel["thumbnail"], use_container_width=True)
+                    st.markdown(f"**@{reel['owner']}**")
+                    if reel.get("caption"):
+                        st.caption(reel["caption"][:80] + "..." if len(reel.get("caption","")) > 80 else reel.get("caption",""))
+                    metric_parts = []
+                    if reel.get("plays"):
+                        metric_parts.append(f"▶️ {reel['plays']:,}")
+                    if reel.get("likes"):
+                        metric_parts.append(f"❤️ {reel['likes']:,}")
+                    if reel.get("comments"):
+                        metric_parts.append(f"💬 {reel['comments']:,}")
+                    if metric_parts:
+                        st.markdown(" · ".join(metric_parts))
+                    st.markdown(f"[View Reel ↗]({reel['url']})")
+        st.caption("Data cached for 1 hour. Hit Refresh to pull latest.")
+    else:
+        st.info("No live reels loaded yet — hit Refresh above or check your Apify key in Streamlit secrets.")
+
+    st.divider()
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.markdown("### 🎵 Trending Audios Right Now")
-        
+
         audios = [
             {"Audio": "original sound - foodie_kings", "Uses": "124K", "Trend": "🔥 Exploding"},
             {"Audio": "Kehlani - Nights Like This (sped up)", "Uses": "98K", "Trend": "📈 Rising"},
@@ -319,7 +370,7 @@ with tab2:
             {"Audio": "original sound - chickenfever", "Uses": "51K", "Trend": "🔥 Exploding"},
             {"Audio": "Rod Wave - Smooth Sailing", "Uses": "43K", "Trend": "📈 Rising"},
         ]
-        
+
         for audio in audios:
             st.markdown(f"""
             <div class="metric-card">
@@ -328,10 +379,10 @@ with tab2:
                 <div style="color:#FF6B00; font-size:0.85rem;">{audio['Trend']}</div>
             </div>
             """, unsafe_allow_html=True)
-    
+
     with col2:
         st.markdown("### 🎬 Trending Content Formats")
-        
+
         formats = [
             {
                 "format": "The Crispy Pull-Apart",
@@ -359,7 +410,7 @@ with tab2:
                 "tags": ["#LocalBusiness", "#Community"]
             },
         ]
-        
+
         for f in formats:
             tags_html = " ".join([f'<span class="tag">{t}</span>' for t in f["tags"]])
             st.markdown(f"""
@@ -369,14 +420,14 @@ with tab2:
                 {tags_html}
             </div>
             """, unsafe_allow_html=True)
-    
+
     st.markdown("### 🏷️ Top Hashtags in the Space")
-    
-    hashtags = ["#nashvillehotchicken", "#hotchicken", "#friedchicken", "#chickensandwich", 
+
+    hashtags = ["#nashvillehotchicken", "#hotchicken", "#friedchicken", "#chickensandwich",
                 "#foodie", "#foodreels", "#eatlocal", "#inlandempirefood", "#fontanaeats",
                 "#socaleats", "#hotchickensandwich", "#crispychicken", "#chickentenders",
                 "#spicyfood", "#foodporn", "#reelsfood", "#foodtok", "#chickenlover"]
-    
+
     pills_html = " ".join([f'<span class="trend-pill">{h}</span>' for h in hashtags])
     st.markdown(f'<div style="line-height:2.5">{pills_html}</div>', unsafe_allow_html=True)
 
