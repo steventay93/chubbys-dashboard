@@ -336,22 +336,37 @@ with tab2:
             cols = st.columns(cols_per_row)
             for col, reel in zip(cols, row_reels):
                 with col:
-                    if reel.get("thumbnail"):
-                        st.image(reel["thumbnail"], use_container_width=True)
-                    st.markdown(f"**@{reel['owner']}**")
-                    if reel.get("caption"):
-                        st.caption(reel["caption"][:80] + "..." if len(reel.get("caption","")) > 80 else reel.get("caption",""))
-                    metric_parts = []
-                    if reel.get("plays"):
-                        metric_parts.append(f"▶️ {reel['plays']:,}")
-                    if reel.get("likes"):
-                        metric_parts.append(f"❤️ {reel['likes']:,}")
-                    if reel.get("comments"):
-                        metric_parts.append(f"💬 {reel['comments']:,}")
-                    if metric_parts:
-                        st.markdown(" · ".join(metric_parts))
-                    st.markdown(f"[View Reel ↗]({reel['url']})")
-        st.caption("Data cached for 1 hour. Hit Refresh to pull latest.")
+                    plays = reel.get("plays") or 0
+                    likes = reel.get("likes") or 0
+                    comments = reel.get("comments") or 0
+                    caption = (reel.get("caption") or "")[:90]
+                    owner = reel.get("owner", "")
+                    url = reel.get("url", "#")
+                    thumb = reel.get("thumbnail", "")
+
+                    plays_str = f"{plays:,}" if plays else "—"
+                    likes_str = f"{likes:,}" if likes else "—"
+                    comments_str = f"{comments:,}" if comments else "—"
+
+                    thumb_html = f'<img src="{thumb}" style="width:100%; border-radius:10px 10px 0 0; object-fit:cover; aspect-ratio:4/5; display:block;">' if thumb else '<div style="width:100%;aspect-ratio:4/5;background:#2a2a2a;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:center;font-size:2rem;">🍗</div>'
+
+                    st.markdown(f"""
+                    <a href="{url}" target="_blank" style="text-decoration:none;">
+                    <div style="background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; overflow:hidden; margin-bottom:1rem; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#FF4500'" onmouseout="this.style.borderColor='#2a2a2a'">
+                        {thumb_html}
+                        <div style="padding:0.85rem;">
+                            <div style="color:#FF4500; font-weight:700; font-size:0.8rem; margin-bottom:0.3rem;">@{owner}</div>
+                            <div style="color:#ccc; font-size:0.78rem; line-height:1.4; min-height:2.5rem; margin-bottom:0.6rem;">{caption}{"..." if len(reel.get("caption","")) > 90 else ""}</div>
+                            <div style="display:flex; gap:0.75rem; color:#888; font-size:0.78rem; border-top:1px solid #2a2a2a; padding-top:0.6rem;">
+                                <span>▶️ {plays_str}</span>
+                                <span>❤️ {likes_str}</span>
+                                <span>💬 {comments_str}</span>
+                            </div>
+                        </div>
+                    </div>
+                    </a>
+                    """, unsafe_allow_html=True)
+        st.caption("📸 Click any card to open the reel on Instagram · Data cached 1 hour · Hit Refresh to update")
     else:
         st.info("No live reels loaded yet — hit Refresh above or check your Apify key in Streamlit secrets.")
 
