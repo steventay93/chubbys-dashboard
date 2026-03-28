@@ -52,42 +52,36 @@ def run_apify_actor(actor_id, run_input, timeout=120):
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def fetch_competitor_reels(handles: list):
-    """Fetch recent reels from competitor accounts using Apify Instagram Reel Scraper."""
+    """Fetch recent posts from competitor accounts using Apify Instagram Post Scraper."""
     all_reels = []
 
-    run_input = {
-        "directUrls": [f"https://www.instagram.com/{h}/" for h in handles],
-        "resultsType": "posts",
-        "resultsLimit": 6,
-        "addParentData": False,
-    }
-
-    results, error = run_apify_actor("apify~instagram-post-scraper", run_input, timeout=180)
-
-    if error:
-        return [], error
-
-    for item in (results or []):
-        # Only include video/reel posts
-        if item.get("type") not in ["Video", "Sidecar"] and not item.get("isVideo"):
-            if item.get("type") != "Image":
-                pass  # include all for now
-
-        reels = {
-            "id": item.get("id", ""),
-            "shortcode": item.get("shortCode", ""),
-            "owner": item.get("ownerUsername", ""),
-            "caption": (item.get("caption") or "")[:120],
-            "likes": item.get("likesCount", 0),
-            "comments": item.get("commentsCount", 0),
-            "plays": item.get("videoViewCount", 0),
-            "timestamp": item.get("timestamp", ""),
-            "thumbnail": item.get("displayUrl", ""),
-            "url": f"https://www.instagram.com/p/{item.get('shortCode', '')}/",
-            "is_video": item.get("isVideo", False),
-            "type": item.get("type", ""),
+    for handle in handles:
+        run_input = {
+            "username": [handle],
+            "resultsLimit": 4,
         }
-        all_reels.append(reels)
+
+        results, error = run_apify_actor("apify~instagram-post-scraper", run_input, timeout=180)
+
+        if error:
+            continue  # skip failed accounts, try next
+
+        for item in (results or []):
+            reels = {
+                "id": item.get("id", ""),
+                "shortcode": item.get("shortCode", ""),
+                "owner": item.get("ownerUsername", handle),
+                "caption": (item.get("caption") or "")[:120],
+                "likes": item.get("likesCount", 0),
+                "comments": item.get("commentsCount", 0),
+                "plays": item.get("videoViewCount", 0),
+                "timestamp": item.get("timestamp", ""),
+                "thumbnail": item.get("displayUrl", ""),
+                "url": f"https://www.instagram.com/p/{item.get('shortCode', '')}/",
+                "is_video": item.get("isVideo", False),
+                "type": item.get("type", ""),
+            }
+            all_reels.append(reels)
 
     # Sort by plays/likes descending
     all_reels.sort(key=lambda x: (x["plays"] or 0) + (x["likes"] or 0) * 10, reverse=True)
@@ -98,10 +92,8 @@ def fetch_competitor_reels(handles: list):
 def fetch_chubbys_posts():
     """Fetch Chubby's own posts for analytics."""
     run_input = {
-        "directUrls": ["https://www.instagram.com/chubbyschicken/"],
-        "resultsType": "posts",
+        "username": ["chubbyschicken"],
         "resultsLimit": 12,
-        "addParentData": False,
     }
 
     results, error = run_apify_actor("apify~instagram-post-scraper", run_input, timeout=180)
